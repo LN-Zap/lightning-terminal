@@ -50,6 +50,23 @@ RUN apk add --no-cache --update alpine-sdk \
   && make go-install \
   && make go-install-cli
 
+
+FROM golang:1.13-alpine3.10 as lndconnectbuilder
+
+# Install dependencies and build the binaries.
+RUN apk add --no-cache --update alpine-sdk \
+    git \
+    make \
+    gcc
+
+# Grab and install the latest version of lndconnect.
+WORKDIR $GOPATH/src/github.com/LN-Zap/lndconnect
+RUN git clone https://github.com/LN-Zap/lndconnect . \
+  && git reset --hard v0.2.0 \
+  && make \
+  && make install \
+  && cp /go/bin/lndconnect /bin/
+
 # Start a new, final image to reduce size.
 FROM alpine as final
 
@@ -65,6 +82,7 @@ COPY --from=golangbuilder /go/bin/lncli /bin/
 COPY --from=golangbuilder /go/bin/frcli /bin/
 COPY --from=golangbuilder /go/bin/loop /bin/
 COPY --from=golangbuilder /go/bin/pool /bin/
+COPY --from=lndconnectbuilder /go/bin/lndconnect /bin/
 
 # Add bash.
 RUN apk add --no-cache \
